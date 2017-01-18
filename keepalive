@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+# keepalive: a script to respawn program
+
+usage () {
+cat <<EOF
+$0 [OPTIONS] COMMAND ARGS
+    -k N   Keep N times to run program, N=-1 means forever(default 5)
+    -s N   Sleep interval between restarts, N=0 means no interval(default 2)
+    -h     This help message.
+
+EOF
+exit 0
+}
+
+threshold=5
+sleep_time=2
+
+if [ $# -lt 1 ] ; then
+    usage
+fi
+
+while getopts k:s:c:h opt
+do
+    case "$opt" in
+        k) threshold="$OPTARG" ;;
+        s) sleep_time="$OPTARG" ;;
+        h) usage ;;
+    esac
+done
+
+shift $(( OPTIND - 1 ))
+
+cmd=$*
+times_until_fail=${threshold}
+
+while (( threshold == -1 )) || (( times_until_fail >= 1 ))  ; do
+    eval $cmd
+    st=$?
+    if (( threshold != -1 )) ; then
+        (( times_until_fail -= 1 ))
+        echo -e "\n-- $(date +"%d/%m/%y %H:%M:%S"): $cmd -- exit: ${st}!"
+        if (( times_until_fail >= 1 )); then
+            if (( sleep_time > 0 )); then
+                echo "-- Sleeping ${sleep_time} seconds..."
+                sleep ${sleep_time}
+            fi
+            echo "start the $((threshold - times_until_fail + 1))th times for $cmd"
+        fi
+    else
+        echo -e "\n-- $(date +"%d/%m/%y %H:%M:%S"): $cmd -- exit: ${st}!"
+        if (( sleep_time > 0 )); then
+            echo "-- Sleeping ${sleep_time} seconds..."
+            sleep ${sleep_time}
+        fi
+        echo "start again for $cmd ..."
+    fi
+done
+
+echo -e "\n-- $cmd  died too many times in too short a space of time. Exiting!"
